@@ -243,8 +243,35 @@ def urlparse(url: str = "", **kwargs: str | None) -> ParseResult:
 
     # Replace "username" and/or "password" with "userinfo".
     if "username" in kwargs or "password" in kwargs:
-        username = quote(kwargs.pop("username", "") or "", safe=USERNAME_SAFE)
-        password = quote(kwargs.pop("password", "") or "", safe=PASSWORD_SAFE)
+        url_match = URL_REGEX.match(url)
+        url_authority = url_match.groupdict()["authority"] if url_match else ""
+        authority = kwargs.get("authority", url_authority) or ""
+        authority_match = AUTHORITY_REGEX.match(authority)
+        authority_dict = authority_match.groupdict() if authority_match else {}
+        existing_username, has_password, existing_password = (
+            authority_dict.get("userinfo") or ""
+        ).partition(":")
+
+        if "username" in kwargs:
+            raw_user = kwargs.pop("username")
+            username = (
+                quote(raw_user or "", safe=USERNAME_SAFE)
+                if raw_user is not None
+                else ""
+            )
+        else:
+            username = existing_username
+
+        if "password" in kwargs:
+            raw_pass = kwargs.pop("password")
+            password = (
+                quote(raw_pass or "", safe=PASSWORD_SAFE)
+                if raw_pass is not None
+                else ""
+            )
+        else:
+            password = existing_password if has_password else ""
+
         kwargs["userinfo"] = f"{username}:{password}" if password else username
 
     # Replace "raw_path" with "path" and "query".

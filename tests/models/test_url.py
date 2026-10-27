@@ -616,6 +616,24 @@ def test_url_copywith_userinfo_subcomponents():
     assert new.userinfo == b"tom%40example.org:abc123%40%20%"
 
 
+def test_url_copywith_single_userinfo_component():
+    url = httpx.URL("https://alice:secret@example.org")
+    new_pass = url.copy_with(password="newsecret")
+    assert str(new_pass) == "https://alice:newsecret@example.org"
+    assert new_pass.username == "alice"
+    assert new_pass.password == "newsecret"
+
+    new_user = url.copy_with(username="bob")
+    assert str(new_user) == "https://bob:secret@example.org"
+    assert new_user.username == "bob"
+    assert new_user.password == "secret"
+
+    no_pass = url.copy_with(password=None)
+    assert str(no_pass) == "https://alice@example.org"
+    assert no_pass.username == "alice"
+    assert no_pass.password == ""
+
+
 def test_url_copywith_invalid_component():
     url = httpx.URL("https://example.org")
     with pytest.raises(TypeError):
