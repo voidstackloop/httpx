@@ -232,9 +232,9 @@ class BaseClient:
         return self._trust_env
 
     def _enforce_trailing_slash(self, url: URL) -> URL:
-        if url.raw_path.endswith(b"/"):
+        if url.path.endswith("/"):
             return url
-        return url.copy_with(raw_path=url.raw_path + b"/")
+        return url.copy_with(path=url._uri_reference.path + "/")
 
     def _get_proxy_map(
         self, proxy: ProxyTypes | None, allow_env_proxies: bool
@@ -395,19 +395,38 @@ class BaseClient:
         """
         merge_url = URL(url)
         if merge_url.is_relative_url:
-            # To merge URLs we always append to the base URL. To get this
-            # behaviour correct we always ensure the base URL ends in a '/'
-            # separator, and strip any leading '/' from the merge URL.
-            #
-            # So, eg...
-            #
-            # >>> client = Client(base_url="https://www.example.com/subpath")
-            # >>> client.base_url
-            # URL('https://www.example.com/subpath/')
-            # >>> client.build_request("GET", "/path").url
-            # URL('https://www.example.com/subpath/path')
-            merge_raw_path = self.base_url.raw_path + merge_url.raw_path.lstrip(b"/")
-            return self.base_url.copy_with(raw_path=merge_raw_path)
+            # To merge URLs we append the relative path to the base URL path.
+            # We ensure the base path ends in a '/' separator, and strip any
+            # leading '/' from the merge URL path.
+            base_path = self.base_url._uri_reference.path or "/"
+            if not base_path.endswith("/"):
+                base_path += "/"
+            sub_path = merge_url._uri_reference.path.lstrip("/")
+            merged_path = base_path + sub_path
+
+            base_query = self.base_url._uri_reference.query
+            sub_query = merge_url._uri_reference.query
+            if sub_query is not None and base_query is not None:
+                merged_query: bytes | None = str(
+                    self.base_url.params.merge(merge_url.params)
+                ).encode("ascii")
+            elif sub_query is not None:
+                merged_query = sub_query.encode("ascii")
+            elif base_query is not None:
+                merged_query = base_query.encode("ascii")
+            else:
+                merged_query = None
+
+            merged_fragment = (
+                merge_url._uri_reference.fragment
+                if merge_url._uri_reference.fragment is not None
+                else self.base_url._uri_reference.fragment
+            )
+            return self.base_url.copy_with(
+                path=merged_path,
+                query=merged_query,
+                fragment=merged_fragment,
+            )
         return merge_url
 
     def _merge_cookies(self, cookies: CookieTypes | None = None) -> CookieTypes | None:

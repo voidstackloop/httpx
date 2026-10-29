@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [UNRELEASED]
 
+### Fixed
+
+* Fix query parameter corruption and path concatenation when using `base_url` with query strings. (#3614)
+* Allow accessing `Response.elapsed` on responses that have been read or closed without transport timers, such as `MockTransport` responses. (#3712)
+
 ### Removed
 
 * Drop support for Python 3.8

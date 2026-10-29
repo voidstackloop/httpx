@@ -1,3 +1,4 @@
+import datetime
 import json
 import pickle
 import typing
@@ -775,6 +776,20 @@ async def test_elapsed_not_available_until_closed():
 
     with pytest.raises(RuntimeError):
         response.elapsed  # noqa: B018
+
+    await response.aclose()
+    assert response.elapsed == datetime.timedelta(0)
+
+
+def test_elapsed_on_read_or_close():
+    response = httpx.Response(200, text="hello")
+    assert response.elapsed == datetime.timedelta(0)
+
+    # Explicit elapsed
+    response = httpx.Response(
+        200, text="hello", elapsed=datetime.timedelta(seconds=1.5)
+    )
+    assert response.elapsed == datetime.timedelta(seconds=1.5)
 
 
 def test_unknown_status_code():

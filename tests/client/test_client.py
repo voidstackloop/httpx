@@ -229,6 +229,49 @@ def test_merge_relative_url_with_encoded_slashes():
     assert request.url == "https://www.example.com/base%2Fpath/testing"
 
 
+def test_merge_relative_url_with_query_in_base_url():
+    # Issue #3614: Query parameter values must not be corrupted with a trailing slash
+    client = httpx.Client(base_url="https://httpbingo.org/get?data=1")
+    assert client.base_url.query == b"data=1"
+    request = client.build_request("GET", "")
+    assert request.url == "https://httpbingo.org/get/?data=1"
+    assert request.url.query == b"data=1"
+
+    # Appending subpaths preserves base_url query parameters
+    client = httpx.Client(base_url="https://example.com/api?token=secret")
+    request = client.build_request("GET", "/users")
+    assert request.url == "https://example.com/api/users?token=secret"
+
+    # Merging query parameters from both base_url and relative url
+    request = client.build_request("GET", "/users?page=2")
+    assert request.url == "https://example.com/api/users?token=secret&page=2"
+
+    # Relative query only
+    request = client.build_request("GET", "?page=2")
+    assert request.url == "https://example.com/api/?token=secret&page=2"
+
+    # Overriding a query parameter present in base_url
+    request = client.build_request("GET", "/users?token=custom")
+    assert request.url == "https://example.com/api/users?token=custom"
+
+    # Base URL with no path but with query parameter
+    client = httpx.Client(base_url="https://example.com?token=secret")
+    request = client.build_request("GET", "/users")
+    assert request.url == "https://example.com/users?token=secret"
+    request = client.build_request("GET", "")
+    assert request.url == "https://example.com/?token=secret"
+
+
+def test_mock_transport_elapsed():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text="Hello, world!")
+
+    transport = httpx.MockTransport(handler)
+    response = transport.handle_request(httpx.Request("GET", "https://example.com"))
+    assert response.status_code == 200
+    assert response.elapsed == timedelta(0)
+
+
 def test_context_managed_transport():
     class Transport(httpx.BaseTransport):
         def __init__(self) -> None:

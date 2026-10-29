@@ -527,6 +527,7 @@ class Response:
         extensions: ResponseExtensions | None = None,
         history: list[Response] | None = None,
         default_encoding: str | typing.Callable[[bytes], str] = "utf-8",
+        elapsed: datetime.timedelta | None = None,
     ) -> None:
         self.status_code = status_code
         self.headers = Headers(headers)
@@ -544,6 +545,9 @@ class Response:
         self.is_stream_consumed = False
 
         self.default_encoding = default_encoding
+
+        if elapsed is not None:
+            self.elapsed = elapsed
 
         if stream is None:
             headers, stream = encode_response(content, text, html, json)
@@ -970,6 +974,8 @@ class Response:
             self.is_closed = True
             with request_context(request=self._request):
                 self.stream.close()
+            if not hasattr(self, "_elapsed"):
+                self._elapsed = datetime.timedelta(0)
 
     async def aread(self) -> bytes:
         """
@@ -1074,6 +1080,8 @@ class Response:
             self.is_closed = True
             with request_context(request=self._request):
                 await self.stream.aclose()
+            if not hasattr(self, "_elapsed"):
+                self._elapsed = datetime.timedelta(0)
 
 
 class Cookies(typing.MutableMapping[str, str]):
